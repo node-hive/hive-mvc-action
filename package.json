@@ -6,7 +6,7 @@
     "scripts": {
         "test": "tap tests"
     },
-    "author": "",
+    "author": "bingomanatee",
     "license": "ISC",
     "dependencies": {
         "gulp": "~3.8.5",
