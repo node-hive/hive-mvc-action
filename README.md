@@ -1,55 +1,120 @@
 # Hive-MVC-action
 
-This refactoring of the action-resolution component of hive-mvc is intended to make atomic the action-handling 
-mechanic of hive-mvc. This includes making it independent of hive-mvc, Express and even Node.js itself. 
+This is a set of classes specifically designed to add waterfall style action resolution to the Express 4.0 router. 
+Actions contain a series of methods that are called as promise resolvers for a given router path. Each route path's 
+result is defined by a discrete Handler, whose properties define not only the method and route to be handled
+but the series of functions with which to handle the route, called the 'chain'. 
 
-Action handling is a specialization of asynchronous problem solving, optimized for http request response handling
-via Express.js. 
+A handler's chain can be defined by passing an array of functions, or an array of strings 
+(identifying functions referenced in its parent action's methods object), or a mixture of strings and functions.
+Each function (referenced or literal) is called in turn unless the error callback is triggered, causing the entire
+router to escape out (usually throwing an error, or releasing control to whatever is next in the Express chain. 
 
-The Hive-mvc-action module is intended to minimize callback spaghetti by turning each response into a "micro-application"
-whose handlers cascade. This is done internally via promises but the footprint from the design aspect is a simple
-set of functions with done and error callbacks, including a state object for each request (or other sort of problem). 
+The scope and ambition of this module is very specific: allowing for a better distribution of the elements of a route
+handler, to better share boilerplate sub-tasks for both consistency and speed of development. All tasks outside this 
+scope are delegated to express, or other modules or custom code, as you prefer.
 
-State includes the req/res objects from express as well as (to come) some useful hooks for access to request parameters. 
+## Example: in use
 
-The function of the ActionHandler methods is to add output data to the state (specifically to state.out by default). 
-The output of Action.handle(handler, req, res) is the promise to be executed asynchronously, and that includes 
-the state (as a $state property) which the handler will modify.
+from the integration tests:
+
+``` javascript
+    
+    var express = require('express');
+    var router = express.Router();
+    
+    var models = require('./../../models/index'); // a dataspace for hive-model (see)
+    
+    var hmvc = require('hive-mvc-action');
+    
+    var action = new hmvc.Action({
+    
+    // defining a shared link function 
+    // note, this function is a resource for defining chains but is not
+    // automatically inserted until it is referenced in a handler chain
+    
+        load_articles: function (state, done, onError) {
+        
+            var articles = models.get_config('articles');
+            articles.all(function (e, data) {
+                if (e) {
+                    onError(e);
+                } else {
+                    state.out.articles = data;
+                    done();
+                }
+            });
+        }
+    });
+    
+    // defining a single handler;
+    // note the handler object is returned from the "on" method
+    // so that you can define a render hook in place. 
+    
+    action.on('get', '/', [
+        'load_articles'
+    ]).render = function (state) {
+        state.res.render('articles/index', state.out);
+    }; // handler has handler-specific renderer
+    
+    action.on('post', '/', [
+        function(state, done, onErr){
+            
+            var articles = models.get_config('articles');
+            var title = state.req.param('title');
+            var content = state.req.param('content');
+            articles.put({title: title, content: content}, 
+              function(err, article) {
+                 if (err) { onErr(err) } else {
+                    state.res.redirect('/articles');
+                    state.interrupt = true; 
+                    // halts further handling of the handler by hive-mvc-action
+                    done();
+                 }
+               });
+        }
+    ]);
+    action.link(router);
+    
+    module.exports = router;
+
+```
+
+The above module defines a single action that 
+
+The router returned is an express router; the receiving app is populated as such:
+(it is an express app instance) 
+
+``` javascript
+    
+    var articles = require('./routes/articles/index');
+    
+    app.use('/articles', articles);
+
+```
+
+Beyond this, the structure of the site is the same as any other Express app, with whatever static 
+directories, templating engines, error echoers, etc. that the standard Express 4.0 app defines. 
+
 
 ## Rendering HTML 
 
-Actions with a template function will inject a combination of that function and the `state.out` content -- unless
-the ActionHandler itself has a `render` method that will supercede it, in which case the handler is responsible for 
-the response. 
+An ActionHandler will attempt to render output through one of two systems:
 
-If there is a template in either of these instances, it is assumed that the state has an Express `res`(ponse) object
-and will invoke `state.res.send(action.template(state.out, state))` (or in the case of renderable ActionHandler instances,
-`handler.render(state)`). 
+1. **An ActionHandler with a render method*** will execute the render method after executing its chain.
+   The render method will be passed the state content as an argument, and the state itself as a second argument.
+   It is responsible for passing content to the express' 
+   res(ponse). 
+2. **An ActionHandler that has a template** will execute its template after executing its chain, 
+   and return the result as a response.
+   The template (which is a function) will be passed the state.out content as an argument. 
+3. **An ActionHandler whose Action has a template** will execute the template after executing its chain, 
+   and return the result as a response. The template (which is a function) 
+   will be passed the `state.out` content as an argument. 
 
-## Rendering JSON
+If none of these situations are true, then the state.out will be returned as a JSON response.
 
-Actions that have no templates, for ActionHandlers without render methods, will respond the state's `.out` property as 
-a JSON; this will be the default path for Actions that have not been actively assigned templates, and whose ActionHandler's
-don't have responses -- this is the default condition. This is done via the `state.res.json(state.out)` 
-hook in `Action.render`.
-
-## "Other" / error
-
-If state.next is set to true, then the end of the promise will pass control back to express. While most of the functionality
-of a standard app should terminate within the scope of the action, if for some reason continuing down the Express handler
-chain is desired, simply set state to next; the state object will be thrown out, but Express will have access to the req/res
-values changed during the actions' execution.
-
-Also, any error result during handler execution will pass the thrown error to next. (that is, errors passed through the 
-error callback of an ActionHandler method -- no guarantee is made of what a standard error throw will do to your application.)
-
-## using notify to debug actions
-
-The fourth handler callback, `notify` is not part of a running apps' flow but can be used for tracking how far an 
-action has got before it fails. see [the Q documentation[(https://github.com/kriskowal/q#using-qpromise) for context
-on how notify works in the promise context. 
-
-
-## Customization
-
-This leaves a significant swath for customization. Any headers, etc. 
+Note that the (optional) templates property of an Action or ActionHandler is fed two arguments: the state's `out` object, 
+and the state itself. As this is not the normal profile for template/view systems like ejs, 
+handlebar and _.template(lodash/underscore) you will want to define your own template functions to adapt to your 
+view module of choice, not simply slap that view module onto the template property. 

@@ -27,7 +27,7 @@ describe('ActionHandler', function () {
                 }
             };
             mockState = {out: {}};
-            actionHandler = new hive_mvc_action.ActionHandler(mockAction, '/', 'get', null); // default/empty action
+            actionHandler = new hive_mvc_action.ActionHandler(mockAction, 'get', '/', null); // default/empty action
         });
 
         it('should handle a request', function (done) {
@@ -72,7 +72,7 @@ describe('ActionHandler', function () {
                 }
             };
             mockState = {out: {}};
-            actionHandler = new hive_mvc_action.ActionHandler(mockAction, '/', 'get', ['a', 'b', 'c']); // default/empty action
+            actionHandler = new hive_mvc_action.ActionHandler(mockAction, 'get', '/', ['a', 'b', 'c']); // default/empty action
         });
 
         it('should handle a request', function (done) {

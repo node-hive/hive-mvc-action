@@ -15,16 +15,16 @@ return (function(){
 
 
 var DEFAULT_METHODS = {
-    validate: function(state, done){
+    validate: function (state, done) {
         done();
     },
-    input: function(state, done){
+    input: function (state, done) {
         done();
     },
-    process: function(state, done){
+    process: function (state, done) {
         done();
     },
-    output: function(state, done){
+    output: function (state, done) {
         done();
     }
 };
@@ -40,11 +40,11 @@ var DEFAULT_METHODS = {
  * @param methods
  * @constructor
  */
-function Action(methods){
+function Action(methods) {
 
-    this.methods =  _.defaults(methods, DEFAULT_METHODS);
+    this.methods = _.defaults(methods, DEFAULT_METHODS);
 
-    this.responses = [];
+    this.handlers = [];
 }
 
 Action.prototype = {
@@ -56,11 +56,56 @@ Action.prototype = {
      *
      * @param route {string} see ActionHandler::constructor
      * @param method {string} see ActionHandler::constructor
-     * @param handler {variant} see ActionHandler::constructor
+     * @param handlerConfig {variant} see ActionHandler::constructor
      *
      */
-    on: function(route, method, handler){
-        this.responses.push(new ActionHandler(this, route, method, handler));
+    on: function (method, route, handlerConfig) {
+        var handler = new ActionHandler(this, method, route, handlerConfig);
+        this.handlers.push(handler);
+        return handler;
+    },
+
+    /**
+     * Binds each handler in the Actions' handlers to an app.
+     * By default an app is an Express Application;
+     * however any class that provides "ducktype" handlers for REST methods and the `use` method
+     * and can provide the req/res objects to the "handle" method of Action should work.
+     *
+     * @param router {express.router}
+     */
+    link: function (router) {
+        _.each(this.handlers, function (ah) {
+            if (ah.method == '*') {
+                router.use(ah.route, _.bind(this.handle, this, ah));
+            } else if (_.isFunction(router[ah.method.toLowerCase()])) {
+                router[ah.method.toLowerCase()](ah.route, _.bind(this.handle, this, ah));
+            } else {
+                throw 'Router cannot handle method ' + ah.method;
+            }
+        }, this);
+    },
+
+    handle: function (handler, req, res, next) {
+        var state = new ActionState(req, res, this);
+        var promise = handler.handle(state); // returns a promise
+        promise.$state = state;
+        promise.then(function () {
+            this.render(handler, state, next);
+        }.bind(this), next);
+        return promise;
+    },
+
+    render: function (handler, state, next) {
+        if (state.next) {
+            next();
+        } else if (handler.render) {
+            handler.render(state);
+        } else if (this.template) {
+            state.res.send(this.template(state.out, state));
+        } else {
+            state.res.json(state.out);
+        }
+
     }
 
 };
@@ -85,7 +130,7 @@ var DEFAULT_RESPONSES = ['validate', 'input', 'process', 'output'];
  * @param chain {variant} see chain for details -- the functions called in series to satisfy the action
  * @constructor
  */
-function ActionHandler(action, route, method, chain) {
+function ActionHandler(action,method,  route, chain) {
 
     this.action = action;
     this.route = route;
@@ -136,7 +181,7 @@ ActionHandler.prototype = {
 
             }, this);
         }
-        return this.chain;
+        return this._chain;
 
     },
 
@@ -153,7 +198,7 @@ ActionHandler.prototype = {
      * @returns {Promise}
      */
     handle: function (state) {
-        return Q.all(_.map(this.chain, function (handler) {
+        return Q.all(_.map(this.chain(), function (handler) {
             return Q.Promise(_.bind(handler, this.action, state));
         }, this));
     }
@@ -161,20 +206,14 @@ ActionHandler.prototype = {
 };
 
 HIVE_MVC.ActionHandler = ActionHandler;
-function ActionState(req, res) {
+function ActionState(req, res, action) {
     this.req = req;
     this.res = res;
-    this._response = null;
+    this.action = action;
+    this.out = {};
 }
 
 ActionState.prototype = {
-
-    response: function(string){
-        if (arguments.length){
-            this._response = string;
-        }
-        return this._response;
-    }
 
 };
 
