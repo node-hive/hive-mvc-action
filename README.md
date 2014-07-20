@@ -14,6 +14,11 @@ The scope and ambition of this module is very specific: allowing for a better di
 handler, to better share boilerplate sub-tasks for both consistency and speed of development. All tasks outside this 
 scope are delegated to express, or other modules or custom code, as you prefer.
 
+## A note on environment/dependencies
+
+altough express is not an inherent dependency of hive-mvc-action, hive-mvc-action is intended to be used
+in concert with express 4.0.x; it is not compatible with earlier versions of express. 
+
 ## Example: in use
 
 from the integration tests:

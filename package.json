@@ -1,24 +1,29 @@
 {
-  "name": "hive-mvc-action",
-  "version": "0.0.1",
-  "description": "A gulp-powered tool for developing context-agnostic javascript processes",
-  "main": "index.js",
-  "scripts": {
-    "test": "tap tests"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "gulp": "~3.8.5",
-    "lodash": "~2.4.1",
-    "gulp-util": "~2.2.19",
-    "q": "~1.0.1"
-  },
-  "devDependencies": {
-    "mocha": "~1.20.1",
-    "should": "~4.0.4",
-    "gulp-concat": "~2.2.0",
-    "gulp-wrap-umd": "~0.2.0",
-    "gulp-template": "~0.1.1"
-  }
+    "name": "hive-mvc-action",
+    "version": "0.0.1",
+    "description": "A utility for handling complex actions for Express.js 4.0",
+    "main": "index.js",
+    "scripts": {
+        "test": "tap tests"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "gulp": "~3.8.5",
+        "lodash": "~2.4.1",
+        "gulp-util": "~2.2.19",
+        "q": "~1.0.1"
+    },
+
+    "devDependencies": {
+        "mocha": "~1.20.1",
+        "should": "~4.0.4",
+        "gulp-concat": "~2.2.0",
+        "gulp-wrap-umd": "~0.2.0",
+        "gulp-template": "~0.1.1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/node-hive/hive-mvc-action.git"
+    }
 }
