@@ -96,10 +96,11 @@ The router returned is an express router; the receiving app is populated as such
 Beyond this, the structure of the site is the same as any other Express app, with whatever static 
 directories, templating engines, error echoers, etc. that the standard Express 4.0 app defines. 
 
-
 ## Rendering HTML 
 
-An ActionHandler will attempt to render output through one of two systems:
+There may be times where all handled actions have the same templates; 
+in other uses you may want individual handlers to have their own rendering templates. 
+To accommodate both paths, An ActionHandler will attempt to render output through one of two systems:
 
 1. **An ActionHandler with a render method*** will execute the render method after executing its chain.
    The render method will be passed the state content as an argument, and the state itself as a second argument.
@@ -114,7 +115,8 @@ An ActionHandler will attempt to render output through one of two systems:
 
 If none of these situations are true, then the state.out will be returned as a JSON response.
 
-Note that the (optional) templates property of an Action or ActionHandler is fed two arguments: the state's `out` object, 
-and the state itself. As this is not the normal profile for template/view systems like ejs, 
+Note that the (optional) templates property of an Action or ActionHandler 
+is fed two arguments: the state's `out` object, and the state itself. 
+As this is not the normal profile for template/view systems like ejs, 
 handlebar and _.template(lodash/underscore) you will want to define your own template functions to adapt to your 
 view module of choice, not simply slap that view module onto the template property. 
